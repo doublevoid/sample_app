@@ -1,0 +1,73 @@
+require 'test_helper'
+
+class UsersEditTest < ActionDispatch::IntegrationTest
+
+  def setup
+    @user = users(:michael)
+  end
+
+  test "unsuccessful edit" do
+    log_in_as(@user)
+    get edit_user_path(@user)
+    assert_template 'users/edit'
+    patch user_path(@user), params: { user: { name:  "",
+                                              email: "foo@invalid",
+                                              password:              "foo",
+                                              password_confirmation: "bar" } }
+    assert_select "div.alert", text: "The form contains 4 errors."
+    assert_template 'users/edit'
+  end
+
+  test "successful edit" do
+    log_in_as(@user)
+    get edit_user_path(@user)
+    assert_template 'users/edit'
+    name  = "Foo Bar"
+    email = "foo@bar.com"
+    patch user_path(@user), params: { user: { name:  name,
+                                              email: email,
+                                              password:              "",
+                                              password_confirmation: "" } }
+    assert_not flash.empty?
+    assert_redirected_to @user
+    @user.reload
+    assert_equal name,  @user.name
+    assert_equal email, @user.email
+  end
+
+  test "successful edit with friendly forwarding" do
+    get edit_user_path(@user)
+    assert_not_nil session[:forwarding_url]
+    log_in_as(@user)
+    assert_redirected_to edit_user_path(@user)
+    name  = "Foo Bar"
+    email = "foo@bar.com"
+    patch user_path(@user), params: { user: { name:  name,
+                                              email: email,
+                                              password:              "foobar",
+                                              password_confirmation: "foobar" } }
+    assert_not flash.empty?
+    assert_redirected_to @user
+    assert_nil session[:forwarding_url]
+    @user.reload
+    assert_equal @user.name,  name
+    assert_equal @user.email, email
+  end
+
+  test "test layout links" do
+    get root_path
+    assert_template 'static_pages/home'
+    assert_select "a[href=?]", about_path
+    assert_select "a[href=?]", help_path
+    assert_select "a[href=?]", contact_path
+    assert_select "a[href=?]", login_path
+    assert_select "a[href=?]", root_path, count: 2
+    user = users(:michael)
+    log_in_as(user)
+    get root_path
+    assert_select "a[href=?]", users_path
+    assert_select "a[href=?]", user_path(user)
+    assert_select "a[href=?]", edit_user_path(user)
+    assert_select "a[href=?]", logout_path
+  end
+end
